@@ -2,7 +2,6 @@ package org.example.storage;
 
 import java.nio.file.Path;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,23 +12,43 @@ public class IndexStorageImpl implements IndexStorage {
 
     @Override
     public void addWord(String word, Path filePath) {
-        if (map.containsKey(word)) {
-            map.get(word).add(filePath);
+        if (word == null || filePath == null || word.isBlank()) {
+            return;
         }
-        else {
-            Set<Path> set = new HashSet<>();
-            set.add(filePath);
-            map.put(word, set);
-        }
+        map.computeIfAbsent(word, k -> ConcurrentHashMap.newKeySet())
+                .add(filePath);
     }
 
     @Override
     public void removeFile(Path filePath) {
+        if (filePath == null) {
+            return;
+        }
+
         map.values().forEach(set -> set.remove(filePath));
     }
 
     @Override
     public Set<Path> getFilesByWord(String word) {
-        return map.getOrDefault(word, Collections.emptySet());
+        if (word == null || word.isBlank()) {
+            return Collections.emptySet();
+        }
+
+        Set<Path> set = map.get(word);
+
+        if (set == null) {
+            return Collections.emptySet();
+        }
+        else {
+            return Collections.unmodifiableSet(set);
+        }
+    }
+
+    @Override
+    public void cleanup() {
+        map.entrySet()
+                .removeIf(entry -> entry
+                        .getValue()
+                        .isEmpty());
     }
 }

@@ -13,4 +13,7 @@ public interface IndexStorage {
 
     // получить все файлы для слова
     public Set<Path> getFilesByWord(String word);
+
+    // очистка пустых entries
+    public void cleanup();
 }
