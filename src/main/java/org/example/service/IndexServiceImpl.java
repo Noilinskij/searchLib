@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.storage.IndexStorage;
 import org.example.token.Tokenizer;
+import org.example.watcher.FileWatcherListener;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -10,7 +11,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Stream;
 
-public class IndexServiceImpl implements IndexService {
+public class IndexServiceImpl implements IndexService, FileWatcherListener {
     public final Tokenizer tokenizer;
     public final IndexStorage indexStorage;
 
@@ -24,6 +25,7 @@ public class IndexServiceImpl implements IndexService {
         if (path == null) {
             return;
         }
+        Path absPath = path.toAbsolutePath().normalize();
         try (Stream<Path> paths = Files.walk(path)) {
             paths.filter(Files::isRegularFile)
                     .forEach(filePath -> {
@@ -59,5 +61,20 @@ public class IndexServiceImpl implements IndexService {
             return Collections.emptySet();
         }
         return indexStorage.getFilesByWord(word.trim().toLowerCase());
+    }
+
+    @Override
+    public void entryCreate(Path path) {
+        addFileToIndex(path);
+    }
+
+    @Override
+    public void entryModify(Path path) {
+        addFileToIndex(path);
+    }
+
+    @Override
+    public void entryDelete(Path path) {
+        removeFileFromIndex(path);
     }
 }
