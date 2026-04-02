@@ -127,7 +127,7 @@ public class FileWatcher implements Runnable {
         }
     }
 
-    public void removePath(Path path) throws IOException {
+    public void removePath(Path path) {
         if (path == null) {
             return;
         }
