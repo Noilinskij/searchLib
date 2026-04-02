@@ -5,6 +5,7 @@ import java.nio.file.*;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.nio.file.StandardWatchEventKinds.*;
@@ -71,14 +72,14 @@ public class FileWatcher implements Runnable {
         if (kind == ENTRY_CREATE) {
             addPath(child);
         } else if (kind == ENTRY_MODIFY){
-            fileWatcherListener.entryModify(child);
+            modifyPath(child);
         } else if (kind == ENTRY_DELETE) {
-            fileWatcherListener.entryDelete(child);
+            removePath(child);
         }
     }
 
     private boolean isAllowed(Path path) {
-        return supervisedPaths.contains(path) || pathToKey.containsKey(path);
+        return supervisedPaths.contains(path);
     }
 
     public void addPath(Path path) throws IOException {
@@ -102,7 +103,9 @@ public class FileWatcher implements Runnable {
                 try {
                     if (Files.isDirectory(p)) {
                         registerDirectory(p);
+                        supervisedPaths.add(p);
                     } else if (Files.isRegularFile(p)) {
+                        supervisedPaths.add(p);
                         fileWatcherListener.entryCreate(p);
                     }
                 } catch (IOException e) {
@@ -126,32 +129,44 @@ public class FileWatcher implements Runnable {
         }
 
         Path absPath = path.toAbsolutePath().normalize();
+        // если была удалена директория
+        if (pathToKey.containsKey(absPath)) {
+           unregisterDirectory(absPath);
+           supervisedPaths.remove(absPath);
+            // удаляем из индекса все файлы в ней
+            Set<Path> toRemove = supervisedPaths.stream()
+                    .filter(p -> p.startsWith(absPath))
+                    .collect(Collectors.toSet());
 
-        if (supervisedPaths.remove(absPath)) {
+            supervisedPaths.removeAll(toRemove);
+            
+            toRemove.forEach(this::unregisterDirectory);
+
+            toRemove.forEach(fileWatcherListener::entryDelete);
+        }
+        // если был удален файл
+        else if (supervisedPaths.remove(absPath)) {
             boolean needed = supervisedPaths.stream()
                     .anyMatch(p -> p.startsWith(absPath.getParent()));
-
             if (!needed) {
                 unregisterDirectory(absPath.getParent());
             }
-
             fileWatcherListener.entryDelete(absPath);
+        }
+
+    }
+
+    public void modifyPath(Path path) {
+        if (path == null) {
             return;
         }
 
-        if (pathToKey.containsKey(absPath)) {
-            supervisedPaths.removeIf(p -> p.startsWith(absPath));
+        Path absPath = path.toAbsolutePath().normalize();
 
-            pathToKey.keySet().stream()
-                    .filter(p -> p.startsWith(absPath))
-                    .toList()
-                    .forEach(this::unregisterDirectory);
-            return;
+        if (Files.isRegularFile(absPath)) {
+            fileWatcherListener.entryModify(absPath);
         }
 
-        if (absPath.getParent() != null && pathToKey.containsKey(absPath.getParent())) {
-            fileWatcherListener.entryDelete(absPath);
-        }
     }
 
     private synchronized void unregisterDirectory(Path dir) {
@@ -159,7 +174,6 @@ public class FileWatcher implements Runnable {
         if (key != null) {
             key.cancel();
             keyToPath.remove(key);
-            pathToKey.remove(dir);
         }
     }
 }
