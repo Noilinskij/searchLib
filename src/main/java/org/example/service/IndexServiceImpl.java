@@ -26,7 +26,7 @@ public class IndexServiceImpl implements IndexService, FileWatcherListener {
             return;
         }
         Path absPath = path.toAbsolutePath().normalize();
-        try (Stream<Path> paths = Files.walk(path)) {
+        try (Stream<Path> paths = Files.walk(absPath)) {
             paths.filter(Files::isRegularFile)
                     .forEach(filePath -> {
 
