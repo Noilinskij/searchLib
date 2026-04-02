@@ -2,6 +2,7 @@ package org.example.service;
 
 import org.example.storage.IndexStorage;
 import org.example.token.Tokenizer;
+import org.example.util.FileTypeUtils;
 import org.example.watcher.FileWatcherListener;
 
 import java.io.IOException;
@@ -12,8 +13,8 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 public class IndexServiceImpl implements IndexService, FileWatcherListener {
-    public final Tokenizer tokenizer;
-    public final IndexStorage indexStorage;
+    private final Tokenizer tokenizer;
+    private final IndexStorage indexStorage;
 
     public IndexServiceImpl(Tokenizer tokenizer, IndexStorage indexStorage) {
         this.tokenizer = tokenizer;
@@ -28,6 +29,7 @@ public class IndexServiceImpl implements IndexService, FileWatcherListener {
         Path absPath = path.toAbsolutePath().normalize();
         try (Stream<Path> paths = Files.walk(absPath)) {
             paths.filter(Files::isRegularFile)
+                    .filter(FileTypeUtils::isTxtFile)
                     .forEach(filePath -> {
 
                         indexStorage.removeFile(filePath);

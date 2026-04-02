@@ -1,5 +1,7 @@
 package org.example.watcher;
 
+import org.example.util.FileTypeUtils;
+
 import java.io.IOException;
 import java.nio.file.*;
 import java.util.Map;
@@ -92,9 +94,11 @@ public class FileWatcher implements Runnable {
         }
 
         if (Files.isRegularFile(absPath)) {
-            registerDirectory(absPath.getParent());
-            supervisedPaths.add(absPath);
-            fileWatcherListener.entryCreate(absPath);
+            if (FileTypeUtils.isTxtFile(absPath)) {
+                registerDirectory(absPath.getParent());
+                supervisedPaths.add(absPath);
+                fileWatcherListener.entryCreate(absPath);
+            }
             return;
         }
 
@@ -104,7 +108,7 @@ public class FileWatcher implements Runnable {
                     if (Files.isDirectory(p)) {
                         registerDirectory(p);
                         supervisedPaths.add(p);
-                    } else if (Files.isRegularFile(p)) {
+                    } else if (Files.isRegularFile(p) && FileTypeUtils.isTxtFile(p)) {
                         supervisedPaths.add(p);
                         fileWatcherListener.entryCreate(p);
                     }
@@ -139,7 +143,7 @@ public class FileWatcher implements Runnable {
                     .collect(Collectors.toSet());
 
             supervisedPaths.removeAll(toRemove);
-            
+
             toRemove.forEach(this::unregisterDirectory);
 
             toRemove.forEach(fileWatcherListener::entryDelete);
@@ -163,7 +167,7 @@ public class FileWatcher implements Runnable {
 
         Path absPath = path.toAbsolutePath().normalize();
 
-        if (Files.isRegularFile(absPath)) {
+        if (Files.isRegularFile(absPath) && FileTypeUtils.isTxtFile(absPath)) {
             fileWatcherListener.entryModify(absPath);
         }
 
